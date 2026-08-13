@@ -5,9 +5,11 @@ Reference:
 https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xca/
 (2.1 XPRESS Algorithm Details, 2.2 LZ77+Huffman Algorithm Details)
 
-XPRESS is used for WIM images and for NTFS files compressed with the
-Windows Overlay Filter (Compact OS / system compression) on Windows 8
-and later.
+The LZ77+Huffman variant is used for WIM images and for NTFS files
+compressed with the Windows Overlay Filter (Compact OS / system
+compression) on Windows 8 and later. The plain LZ77 variant is the
+COMPRESSION_FORMAT_XPRESS format of the Windows compression API
+(RtlCompressBuffer), used e.g. for hibernation files.
 
 Plain LZ77:
 The stream is a sequence of 32-bit flag groups, each flag tested from
@@ -61,9 +63,9 @@ const (
 	// Maximum number of match bytes we will copy in a single call.
 	xpressNumSymbols = 512 // 256 literals + 256 match symbols
 
-	// Maximum decompressed size per call (Windows limits XPRESS blocks
-	// to 1 MiB in WOF/WIM contexts).
-	MAX_DECOMPRESSED_FILE = 1000000
+	// Maximum decompressed size per call. Windows sizes XPRESS blocks
+	// at up to 32 MiB for WIM chunks and up to 1 MiB for WOF chunks.
+	MAX_DECOMPRESSED_FILE = 32 * 1024 * 1024
 )
 
 // XpressDecompress decompresses an XPRESS plain-LZ77 stream. The stream
