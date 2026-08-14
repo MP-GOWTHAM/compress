@@ -48,33 +48,40 @@ import (
 	"errors"
 )
 
+// MaxSize is the maximum size a single stream may decompress to. Both
+// variants enforce it so a crafted stream cannot request an excessive
+// allocation or produce unbounded output.
+const MaxSize = 32 << 20 // 32 MiB
+
 var (
-	endOfStreamError    = errors.New("XPRESS: unexpected end of stream")
-	corruptStreamError  = errors.New("XPRESS: corrupt stream")
-	invalidCodeError    = errors.New("XPRESS: invalid Huffman code lengths")
-	compressionTooLarge = errors.New("XPRESS: Compression Ratio Too Large")
+	errInvalidCode = errors.New("xpress: invalid Huffman code lengths")
+	errCorrupt     = errors.New("xpress: corrupt stream")
+	errTruncated   = errors.New("xpress: truncated stream")
+	errTooLarge    = errors.New("xpress: decompressed data exceeds MaxSize")
 )
 
 const (
 	// Depth of the canonical decode table (maximum code length is 15).
 	xpressTableBits = 15
+
+	// Size of the canonical decode table.
 	xpressTableSize = 1 << xpressTableBits // 32768 entries
 
-	// Maximum number of match bytes we will copy in a single call.
-	xpressNumSymbols = 512 // 256 literals + 256 match symbols
-
-	// Maximum decompressed size per call. Windows sizes XPRESS blocks
-	// at up to 32 MiB for WIM chunks and up to 1 MiB for WOF chunks.
-	MAX_DECOMPRESSED_FILE = 32 * 1024 * 1024
+	// Number of Huffman symbols: 256 literals + 256 match symbols.
+	xpressNumSymbols = 512
 )
 
-// XpressDecompress decompresses an XPRESS plain-LZ77 stream. The stream
-// is self-terminating so no output size is required.
-func XpressDecompress(in []byte) (out []byte, err error) {
+// AppendDecompressed appends the decompressed form of an XPRESS plain
+// LZ77 stream to out and returns the extended slice. The stream is
+// self-terminating, so no output size is required. On error, out is
+// returned unmodified.
+func AppendDecompressed(out, in []byte) ([]byte, error) {
+	base := len(out)
 
 	// Offset of the shared-nibble byte, or -1 when none is pending.
+	// The pending half survives literals: it is consumed only by the
+	// next match that uses the shared-nibble form.
 	pending_len := -1
-	out = make([]byte, 0, len(in))
 
 	flags := uint32(0)
 	flags_left := 0
@@ -82,8 +89,11 @@ func XpressDecompress(in []byte) (out []byte, err error) {
 
 	for {
 		if flags_left == 0 {
+			if len(in)-i == 0 {
+				return out, nil
+			}
 			if len(in)-i < 4 {
-				return nil, endOfStreamError
+				return out[:base], errTruncated
 			}
 			flags = binary.LittleEndian.Uint32(in[i:])
 			i += 4
@@ -91,22 +101,22 @@ func XpressDecompress(in []byte) (out []byte, err error) {
 		}
 		flags_left--
 		if flags&(uint32(1)<<flags_left) == 0 {
-			// Literal clears the pending shared-nibble half.
-			pending_len = -1
 			if i >= len(in) {
-				return nil, endOfStreamError
+				return out[:base], errTruncated
 			}
 			out = append(out, in[i])
 			i++
+			if len(out)-base > MaxSize {
+				return out[:base], errTooLarge
+			}
 			continue
 		}
-
 		// A set flag with no input left is the end-of-data marker.
 		if i >= len(in) {
 			return out, nil
 		}
 		if len(in)-i < 2 {
-			return nil, endOfStreamError
+			return out[:base], errTruncated
 		}
 		mb := binary.LittleEndian.Uint16(in[i:])
 		i += 2
@@ -117,7 +127,7 @@ func XpressDecompress(in []byte) (out []byte, err error) {
 			var nib int
 			if pending_len == -1 {
 				if i >= len(in) {
-					return nil, endOfStreamError
+					return out[:base], errTruncated
 				}
 				nib = int(in[i] & 0x0F)
 				pending_len = i
@@ -129,53 +139,62 @@ func XpressDecompress(in []byte) (out []byte, err error) {
 			if nib == 15 {
 				v := int64(0)
 				if i >= len(in) {
-					return nil, endOfStreamError
+					return out[:base], errTruncated
 				}
 				v = int64(in[i])
 				i++
 				if v == 255 {
 					if len(in)-i < 2 {
-						return nil, endOfStreamError
+						return out[:base], errTruncated
 					}
 					v = int64(binary.LittleEndian.Uint16(in[i:]))
 					i += 2
 					if v == 0 {
 						if len(in)-i < 4 {
-							return nil, endOfStreamError
+							return out[:base], errTruncated
 						}
 						v = int64(binary.LittleEndian.Uint32(in[i:]))
 						i += 4
 					}
+					if v < 15+7 {
+						return out[:base], errCorrupt
+					}
+					if v > MaxSize {
+						return out[:base], errTooLarge
+					}
+					mlen = int(v) + 3
+				} else {
+					mlen = int(v) + 25
 				}
-				if v < 22 {
-					return nil, corruptStreamError
-				}
-				mlen = int(v) + 3
 			} else {
-				mlen = nib + 3
+				mlen = nib + 10
 			}
 		}
 
-		if moff > 8192 || moff > len(out) {
-			return nil, corruptStreamError
+		if mlen > MaxSize-(len(out)-base) {
+			return out[:base], errTooLarge
 		}
-		if len(out) > MAX_DECOMPRESSED_FILE-mlen {
-			return nil, compressionTooLarge
-		}
-		start := len(out) - moff
 		for j := 0; j < mlen; j++ {
-			out = append(out, out[start+j])
+			if moff > len(out) {
+				return out[:base], errCorrupt
+			}
+			out = append(out, out[len(out)-moff])
 		}
 	}
 }
 
-// XpressHuffmanDecompress decompresses an XPRESS LZ77+Huffman stream.
-// The uncompressed size must be known in advance.
-func XpressHuffmanDecompress(in []byte, decompressed_size int) (
-	out []byte, err error) {
+// AppendHDecompressed appends decompressed_size bytes of an XPRESS
+// LZ77+Huffman stream to out and returns the extended slice. The
+// uncompressed size must be known in advance. On error, out is returned
+// unmodified.
+func AppendHDecompressed(out, in []byte, decompressed_size int) ([]byte, error) {
+	base := len(out)
+	if decompressed_size < 0 || decompressed_size > MaxSize {
+		return out, errTooLarge
+	}
 
 	if len(in) < 256 {
-		return nil, endOfStreamError
+		return out, errTruncated
 	}
 
 	// 512 4-bit code lengths, even symbol in the low nibble.
@@ -196,7 +215,7 @@ func XpressHuffmanDecompress(in []byte, decompressed_size int) (
 					if entry >= xpressTableSize {
 						// Oversubscribed codes: the table cannot hold
 						// this many entries.
-						return nil, invalidCodeError
+						return out, errInvalidCode
 					}
 					table[entry] = uint16(s)
 					entry++
@@ -206,7 +225,7 @@ func XpressHuffmanDecompress(in []byte, decompressed_size int) (
 	}
 	if entry != xpressTableSize {
 		// The code lengths must form a complete prefix code.
-		return nil, invalidCodeError
+		return out, errInvalidCode
 	}
 
 	// Preload two LE16 words, most-significant bit first.
@@ -214,18 +233,17 @@ func XpressHuffmanDecompress(in []byte, decompressed_size int) (
 	nbits := 0
 	for nbits < 32 {
 		if len(in)-i < 2 {
-			return nil, endOfStreamError
+			return out, errTruncated
 		}
 		bits |= uint32(binary.LittleEndian.Uint16(in[i:])) << (16 - nbits)
 		i += 2
 		nbits += 16
 	}
 
-	out = make([]byte, 0, decompressed_size)
-	for len(out) < decompressed_size {
+	for len(out)-base < decompressed_size {
 		for nbits < 15 {
 			if len(in)-i < 2 {
-				return nil, endOfStreamError
+				return out[:base], errTruncated
 			}
 			bits |= uint32(binary.LittleEndian.Uint16(in[i:])) << (16 - nbits)
 			i += 2
@@ -244,11 +262,11 @@ func XpressHuffmanDecompress(in []byte, decompressed_size int) (
 		if sym == 256 {
 			// End of data; Microsoft decodes it as match(3, 1)
 			// mid-stream.
-			if len(out) == decompressed_size {
+			if len(out)-base == decompressed_size {
 				break
 			}
-			if len(out) == 0 || decompressed_size-len(out) < 3 {
-				return nil, corruptStreamError
+			if len(out)-base == 0 || decompressed_size-(len(out)-base) < 3 {
+				return out[:base], errCorrupt
 			}
 			start := len(out) - 1
 			for j := 0; j < 3; j++ {
@@ -262,22 +280,25 @@ func XpressHuffmanDecompress(in []byte, decompressed_size int) (
 		if mlen == 15 {
 			v := uint32(0)
 			if i >= len(in) {
-				return nil, endOfStreamError
+				return out[:base], errTruncated
 			}
 			v = uint32(in[i])
 			i++
 			if v == 255 {
 				if len(in)-i < 2 {
-					return nil, endOfStreamError
+					return out[:base], errTruncated
 				}
 				v = uint32(binary.LittleEndian.Uint16(in[i:]))
 				i += 2
 				if v == 0 {
 					if len(in)-i < 4 {
-						return nil, endOfStreamError
+						return out[:base], errTruncated
 					}
 					v = binary.LittleEndian.Uint32(in[i:])
 					i += 4
+				}
+				if v > MaxSize {
+					return out[:base], errTooLarge
 				}
 				mlen = int(v) + 3
 			} else {
@@ -289,7 +310,7 @@ func XpressHuffmanDecompress(in []byte, decompressed_size int) (
 
 		for nbits < hb {
 			if len(in)-i < 2 {
-				return nil, endOfStreamError
+				return out[:base], errTruncated
 			}
 			bits |= uint32(binary.LittleEndian.Uint16(in[i:])) << (16 - nbits)
 			i += 2
@@ -304,10 +325,10 @@ func XpressHuffmanDecompress(in []byte, decompressed_size int) (
 		moff += 1 << hb
 
 		if moff > len(out) {
-			return nil, corruptStreamError
+			return out[:base], errCorrupt
 		}
-		if len(out) > MAX_DECOMPRESSED_FILE-mlen {
-			return nil, compressionTooLarge
+		if len(out)-base > MaxSize-mlen {
+			return out[:base], errTooLarge
 		}
 		start := len(out) - moff
 		for j := 0; j < mlen; j++ {
