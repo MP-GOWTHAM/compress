@@ -1,6 +1,8 @@
 package xpress
 
 import (
+	"bytes"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -51,39 +53,43 @@ func TestXpressTruncated(t *testing.T) {
 	// Plain LZ77: cut off mid-match.
 	plain := byName("Plain1")
 	_, err := AppendDecompressed(nil, plain.data[:8])
-	if err == nil {
-		t.Error("plain: expected error on truncated stream")
+	if !errors.Is(err, errTruncated) {
+		t.Errorf("plain: expected truncated stream, got %v", err)
 	}
 
 	// Huffman: fewer than the mandatory 256 table bytes.
 	huff0 := byName("Huff0")
 	_, err = AppendHDecompressed(nil, huff0.data[:100], 360)
-	if err == nil {
-		t.Error("huffman: expected error on short table")
+	if !errors.Is(err, errTruncated) {
+		t.Errorf("huffman: expected truncated stream on short table, got %v", err)
 	}
 
-	// Huffman: declare a larger output than the stream contains.
+	// Huffman: declare a larger output than the stream contains. The
+	// stream's end-of-data symbol lands mid-loop with fewer than 3
+	// bytes remaining, so the decoder reports a corrupt stream.
 	huff5 := byName("Huff5")
 	_, err = AppendHDecompressed(nil, huff5.data, 22)
-	if err == nil {
-		t.Error("huffman: expected error when output size is too large")
+	if !errors.Is(err, errCorrupt) {
+		t.Errorf("huffman: expected corrupt stream on oversized declare, got %v", err)
 	}
 }
 
 func TestXpressExpansionRatio(t *testing.T) {
 	// A match with a 4GB raw length via the LE32 extension must be
-	// rejected by the decompressed-size cap.
+	// rejected by the decompressed-size cap. The flag group is stored
+	// little-endian, so bit 31 (a match) is the last byte 0x40.
 	in := []byte{
-		0x40, 0x00, 0x00, 0x00, // flag group: literal, then match
+		0x00, 0x00, 0x00, 0x40, // flag group: literal, then match
 		0x41,       // literal 'A'
 		0x07, 0x00, // match: offset 1, length nibble 7
-		0xFF,       // nibble 15: raw length byte
-		0x00, 0x00, // -> 255: LE16
-		0xFF, 0xFF, 0xFF, 0xFF, // -> 0: LE32 (4GB - 1)
+		0xFF,       // nibble 15: raw length byte follows
+		0xFF,       // raw length byte 255: LE16 follows
+		0x00, 0x00, // -> LE16 0: LE32 follows
+		0xFF, 0xFF, 0xFF, 0xFF, // -> LE32 (4GB - 1)
 	}
 	_, err := AppendDecompressed(nil, in)
-	if err == nil {
-		t.Error("plain: expected compression ratio error")
+	if !errors.Is(err, errTooLarge) {
+		t.Errorf("plain: expected compression ratio error, got %v", err)
 	}
 }
 
@@ -97,16 +103,16 @@ func TestXpressCorruptCode(t *testing.T) {
 }
 
 func TestXpressOOB(t *testing.T) {
-	// Flags group claims a match but there are no bytes left.
-	_, err := AppendDecompressed(nil, []byte{0x80, 0x00, 0x00, 0x00})
-	if err == nil {
-		t.Error("plain: expected error on dangling match flag")
+	// A match flag with only one byte of the two-byte match word.
+	_, err := AppendDecompressed(nil, []byte{0x00, 0x00, 0x00, 0x80, 0x01})
+	if !errors.Is(err, errTruncated) {
+		t.Errorf("plain: expected truncated stream, got %v", err)
 	}
 
 	// A match farther back than the output produced so far.
-	_, err = AppendDecompressed(nil, []byte{0x40, 0x00, 0x00, 0x00, 0x41, 0x50, 0x00})
-	if err == nil {
-		t.Error("plain: expected error on out-of-range offset")
+	_, err = AppendDecompressed(nil, []byte{0x00, 0x00, 0x00, 0x40, 0x41, 0x50, 0x00})
+	if !errors.Is(err, errCorrupt) {
+		t.Errorf("plain: expected out-of-range offset, got %v", err)
 	}
 }
 
@@ -125,12 +131,14 @@ func TestXpressAppendMode(t *testing.T) {
 		t.Error("append: decoded body mismatch")
 	}
 
-	// On error the output is returned unmodified.
-	_, err = AppendDecompressed(prefix, []byte{0x80, 0x00, 0x00, 0x00})
-	if err == nil {
-		t.Fatal("expected error")
+	// On error the output is returned unmodified: the returned slice
+	// must equal the original prefix, not the partially built prefix.
+	prefix2 := []byte("PRE")
+	out2, err := AppendDecompressed(prefix2, []byte{0x00, 0x00, 0x00, 0x40, 0x41, 0x07, 0x00})
+	if !errors.Is(err, errTruncated) {
+		t.Fatalf("expected truncation error, got %v", err)
 	}
-	if len(out) != len(prefix)+len(v.expected) {
-		t.Error("append: error path returned a modified slice")
+	if !bytes.Equal(out2, prefix2) {
+		t.Errorf("append: error path modified the slice: %q", out2)
 	}
 }

@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"go/format"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -77,7 +78,12 @@ func main() {
 	// Resolve the output path relative to this source file so the
 	// generator works from any working directory.
 	outPath := filepath.Join(filepath.Dir(srcFile()), "..", "..", "xpress", "xpress_data_test.go")
-	if err := os.WriteFile(outPath, []byte(b.String()), 0o644); err != nil {
+	formatted, err := format.Source([]byte(b.String()))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(outPath, formatted, 0o644); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -145,8 +151,8 @@ func encode(data []byte) []byte {
 		bestLen := 0
 		bestOff := 0
 		maxLen := n - inPos
-		if maxLen > 65535 {
-			maxLen = 65535
+		if maxLen > 1<<17 {
+			maxLen = 1 << 17
 		}
 		start := inPos - 8192
 		if start < 0 {

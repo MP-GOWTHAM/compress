@@ -174,10 +174,12 @@ func AppendDecompressed(out, in []byte) ([]byte, error) {
 		if mlen > MaxSize-(len(out)-base) {
 			return out[:base], errTooLarge
 		}
+		// Matches may only reference output produced by this call, never
+		// the caller-provided prefix.
+		if moff > len(out)-base {
+			return out[:base], errCorrupt
+		}
 		for j := 0; j < mlen; j++ {
-			if moff > len(out) {
-				return out[:base], errCorrupt
-			}
 			out = append(out, out[len(out)-moff])
 		}
 	}
@@ -324,7 +326,7 @@ func AppendHDecompressed(out, in []byte, decompressed_size int) ([]byte, error) 
 		}
 		moff += 1 << hb
 
-		if moff > len(out) {
+		if moff > len(out)-base {
 			return out[:base], errCorrupt
 		}
 		if len(out)-base > MaxSize-mlen {
