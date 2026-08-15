@@ -185,6 +185,11 @@ func encode(data []byte) []byte {
 			continue
 		}
 		// Match.
+		if flagCount == 0 {
+			flagOutPos = outPos
+			out = append(out, 0, 0, 0, 0)
+			outPos += 4
+		}
 		matchLen := bestLen - 3
 		matchOff := bestOff - 1
 		matchOff <<= 3
@@ -306,6 +311,11 @@ func plainVectors() []vector {
 			name:     "Plain9: large offset (6000 copies of a 22-byte phrase)",
 			input:    bytes.Repeat([]byte("0123456789abcdefghijkl"), 6000),
 			expected: bytes.Repeat([]byte("0123456789abcdefghijkl"), 6000),
+		},
+		{
+			name:     "Plain10: match opens a flag group after 32 literals",
+			input:    append([]byte("abcdefghijklmnopqrstuvwxyz012345"), bytes.Repeat([]byte("012345"), 4)...),
+			expected: append([]byte("abcdefghijklmnopqrstuvwxyz012345"), bytes.Repeat([]byte("012345"), 4)...),
 		},
 	}
 }
