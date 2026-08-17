@@ -201,7 +201,7 @@ func AppendHDecompressed(out, in []byte, decompressed_size int) ([]byte, error) 
 
 	// 512 4-bit code lengths, even symbol in the low nibble.
 	lens := make([]uint16, xpressNumSymbols)
-	for l := 0; l < 256; l++ {
+	for l := range 256 {
 		lens[l*2] = uint16(in[l] & 0x0F)
 		lens[l*2+1] = uint16(in[l] >> 4)
 	}
@@ -211,7 +211,7 @@ func AppendHDecompressed(out, in []byte, decompressed_size int) ([]byte, error) 
 	table := make([]uint16, xpressTableSize)
 	entry := 0
 	for l := 1; l <= xpressTableBits; l++ {
-		for s := 0; s < xpressNumSymbols; s++ {
+		for s := range xpressNumSymbols {
 			if lens[s] == uint16(l) {
 				for k := 1 << (xpressTableBits - l); k > 0; k-- {
 					if entry >= xpressTableSize {
@@ -271,7 +271,7 @@ func AppendHDecompressed(out, in []byte, decompressed_size int) ([]byte, error) 
 				return out[:base], errCorrupt
 			}
 			start := len(out) - 1
-			for j := 0; j < 3; j++ {
+			for j := range 3 {
 				out = append(out, out[start+j])
 			}
 			continue
