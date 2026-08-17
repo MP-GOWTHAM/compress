@@ -118,27 +118,81 @@ func TestXpressOOB(t *testing.T) {
 
 func TestXpressAppendMode(t *testing.T) {
 	// The append-API keeps the caller's prefix and continues decoding.
-	v := xpressVectors[1]
-	prefix := []byte("PRE")
-	out, err := AppendDecompressed(prefix, v.data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(out[:len(prefix)]) != "PRE" {
-		t.Error("append: prefix lost")
-	}
-	if string(out[len(prefix):]) != string(v.expected) {
-		t.Error("append: decoded body mismatch")
-	}
+	for _, v := range xpressVectors {
+		if v.huff {
+			continue
+		}
+		prefix := []byte("PRE")
+		out, err := AppendDecompressed(prefix, v.data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(out[:len(prefix)]) != "PRE" {
+			t.Error("append: prefix lost")
+		}
+		if string(out[len(prefix):]) != string(v.expected) {
+			t.Error("append: decoded body mismatch")
+		}
+		prefix = make([]byte, MaxSize)
+		out, err = AppendDecompressed(prefix, v.data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(out[:MaxSize], prefix) {
+			t.Error("append: prefix lost")
+		}
+		if string(out[len(prefix):]) != string(v.expected) {
+			t.Error("append: decoded body mismatch")
+		}
 
-	// On error the output is returned unmodified: the returned slice
-	// must equal the original prefix, not the partially built prefix.
-	prefix2 := []byte("PRE")
-	out2, err := AppendDecompressed(prefix2, []byte{0x00, 0x00, 0x00, 0x40, 0x41, 0x07, 0x00})
-	if !errors.Is(err, errTruncated) {
-		t.Fatalf("expected truncation error, got %v", err)
+		// On error the output is returned unmodified: the returned slice
+		// must equal the original prefix, not the partially built prefix.
+		prefix2 := []byte("PRE")
+		out2, err := AppendDecompressed(prefix2, []byte{0x00, 0x00, 0x00, 0x40, 0x41, 0x07, 0x00})
+		if !errors.Is(err, errTruncated) {
+			t.Fatalf("expected truncation error, got %v", err)
+		}
+		if !bytes.Equal(out2, prefix2) {
+			t.Errorf("append: error path modified the slice: %q", out2)
+		}
 	}
-	if !bytes.Equal(out2, prefix2) {
-		t.Errorf("append: error path modified the slice: %q", out2)
+}
+
+func TestXpressAppendModeHuff(t *testing.T) {
+	// The append-API keeps the caller's prefix and continues decoding.
+	for _, v := range xpressVectors {
+		if !v.huff {
+			continue
+		}
+		prefix := []byte("PRE")
+		out, err := AppendHDecompressed(prefix, v.data, len(v.expected))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(out[:len(prefix)]) != "PRE" {
+			t.Error("append: prefix lost")
+		}
+		if string(out[len(prefix):]) != string(v.expected) {
+			t.Error("append: decoded body mismatch")
+		}
+		prefix = make([]byte, MaxSize)
+		out, err = AppendHDecompressed(prefix, v.data, len(v.expected))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(out[:MaxSize], prefix) {
+			t.Error("append: prefix lost")
+		}
+
+		// On error the output is returned unmodified: the returned slice
+		// must equal the original prefix, not the partially built prefix.
+		prefix2 := []byte("PRE")
+		out2, err := AppendHDecompressed(prefix2, []byte{0x00, 0x00, 0x00, 0x40, 0x41, 0x07, 0x00}, 7)
+		if !errors.Is(err, errTruncated) {
+			t.Fatalf("expected truncation error, got %v", err)
+		}
+		if !bytes.Equal(out2, prefix2) {
+			t.Errorf("append: error path modified the slice: %q", out2)
+		}
 	}
 }

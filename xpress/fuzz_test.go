@@ -1,45 +1,43 @@
 package xpress
 
 import (
-	"encoding/binary"
 	"testing"
 )
 
-// FuzzXpress runs the fuzzed input through both decompressors and asserts
+// FuzzXpressPlain runs the fuzzed input through both decompressors and asserts
 // that neither panics and that neither ever produces more than MaxSize
 // bytes of output. The seed corpus is the compressed side of the MS-XCA
 // test vectors.
-func FuzzXpress(f *testing.F) {
+func FuzzXpressPlain(f *testing.F) {
 	for _, v := range xpressVectors {
 		f.Add(v.data)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		out, err := AppendDecompressed(nil, data)
-		if err == nil && len(out) > MaxSize {
+		pre := make([]byte, len(data)&(MaxSize-1))
+		out, err := AppendDecompressed(pre, data)
+		if len(out)-len(pre) > MaxSize {
 			t.Fatalf("plain LZ77: %d bytes of output exceeds MaxSize", len(out))
+		}
+		if err != nil && len(out) != len(pre) {
+			t.Fatalf("plain LZ77: error, but output modified %d != %d", len(out), len(pre))
 		}
 	})
 }
 
-// FuzzXpressHuffman is like FuzzXpress but for the Huffman variant, which
-// requires the uncompressed size as a separate argument. The size is taken
-// from the start of the input and clamped to MaxSize.
+// FuzzXpressHuffman is for the Huffman variant, which
+// requires the uncompressed size as a separate argument.
 func FuzzXpressHuffman(f *testing.F) {
 	for _, v := range xpressVectors {
-		f.Add(v.data)
+		f.Add(v.data, len(v.expected))
 	}
-	f.Fuzz(func(t *testing.T, data []byte) {
-		size := 0
-		if len(data) >= 4 {
-			s := binary.LittleEndian.Uint32(data)
-			if uint64(s) > MaxSize {
-				s = MaxSize
-			}
-			size = int(s)
-		}
-		out, err := AppendHDecompressed(nil, data, size)
-		if err == nil && len(out) > MaxSize {
+	f.Fuzz(func(t *testing.T, data []byte, dsize int) {
+		pre := make([]byte, dsize&(MaxSize-1))
+		out, err := AppendHDecompressed(pre, data, dsize)
+		if len(out)-len(pre) > MaxSize {
 			t.Fatalf("LZ77+Huffman: %d bytes of output exceeds MaxSize", len(out))
+		}
+		if err != nil && len(out) != len(pre) {
+			t.Fatalf("LZ77+Huff: error, but output modified %d != %d", len(out), len(pre))
 		}
 	})
 }
