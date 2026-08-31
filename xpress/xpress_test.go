@@ -183,7 +183,9 @@ func TestXpressAppendModeHuff(t *testing.T) {
 		if !bytes.Equal(out[:MaxSize], prefix) {
 			t.Error("append: prefix lost")
 		}
-
+		if string(out[len(prefix):]) != string(v.expected) {
+			t.Error("append: decoded body mismatch")
+		}
 		// On error the output is returned unmodified: the returned slice
 		// must equal the original prefix, not the partially built prefix.
 		prefix2 := []byte("PRE")
