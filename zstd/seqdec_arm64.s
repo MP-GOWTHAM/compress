@@ -60,8 +60,7 @@ sequenceDecs_decode_amd64_fill_end:
 	MOVD R3, R1
 	MOVD R2, R14
 	LSL  R1, R14, R14
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decode_amd64_of_update_zero
@@ -82,8 +81,7 @@ sequenceDecs_decode_amd64_of_update_zero:
 	MOVD R3, R1
 	MOVD R2, R14
 	LSL  R1, R14, R14
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decode_amd64_ml_update_zero
@@ -133,8 +131,7 @@ sequenceDecs_decode_amd64_fill_2_end:
 	MOVD R3, R1
 	MOVD R2, R14
 	LSL  R1, R14, R14
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decode_amd64_ll_update_zero
@@ -151,14 +148,12 @@ sequenceDecs_decode_amd64_ll_update_zero:
 	MOVD R0, (R9)
 
 	// Fill bitreader for state updates
-	MOVD  R13, 8(RSP)
-	MOVD  R8, R0
-	LSR   $0x08, R0, R0
-	MOVBU R0, R0
-	MOVD  ctx+16(FP), R1
-	MOVD  96(R1), R16
-	CMP   $0x00, R16
-	BEQ   sequenceDecs_decode_amd64_skip_update
+	MOVD R13, 8(RSP)
+	UBFX $8, R8, $8, R0
+	MOVD ctx+16(FP), R1
+	MOVD 96(R1), R16
+	CMP  $0x00, R16
+	BEQ  sequenceDecs_decode_amd64_skip_update
 
 	// Update Literal Length State
 	MOVBU R6, R13
@@ -169,7 +164,7 @@ sequenceDecs_decode_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R14, R14
 	MOVD  $0x00000001, R4
-	BFI   $0, R13, $8, R1
+	MOVBU R13, R1
 	LSLW  R1, R4, R4
 	SUBW  $1, R4, R4
 	AND   R4, R14, R14
@@ -189,7 +184,7 @@ sequenceDecs_decode_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R14, R14
 	MOVD  $0x00000001, R4
-	BFI   $0, R13, $8, R1
+	MOVBU R13, R1
 	LSLW  R1, R4, R4
 	SUBW  $1, R4, R4
 	AND   R4, R14, R14
@@ -209,7 +204,7 @@ sequenceDecs_decode_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R14, R14
 	MOVD  $0x00000001, R4
-	BFI   $0, R13, $8, R1
+	MOVBU R13, R1
 	LSLW  R1, R4, R4
 	SUBW  $1, R4, R4
 	AND   R4, R14, R14
@@ -408,8 +403,7 @@ sequenceDecs_decode_56_amd64_fill_end:
 	MOVD R3, R1
 	MOVD R2, R14
 	LSL  R1, R14, R14
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decode_56_amd64_of_update_zero
@@ -430,8 +424,7 @@ sequenceDecs_decode_56_amd64_of_update_zero:
 	MOVD R3, R1
 	MOVD R2, R14
 	LSL  R1, R14, R14
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decode_56_amd64_ml_update_zero
@@ -452,8 +445,7 @@ sequenceDecs_decode_56_amd64_ml_update_zero:
 	MOVD R3, R1
 	MOVD R2, R14
 	LSL  R1, R14, R14
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decode_56_amd64_ll_update_zero
@@ -470,14 +462,12 @@ sequenceDecs_decode_56_amd64_ll_update_zero:
 	MOVD R0, (R9)
 
 	// Fill bitreader for state updates
-	MOVD  R13, 8(RSP)
-	MOVD  R8, R0
-	LSR   $0x08, R0, R0
-	MOVBU R0, R0
-	MOVD  ctx+16(FP), R1
-	MOVD  96(R1), R16
-	CMP   $0x00, R16
-	BEQ   sequenceDecs_decode_56_amd64_skip_update
+	MOVD R13, 8(RSP)
+	UBFX $8, R8, $8, R0
+	MOVD ctx+16(FP), R1
+	MOVD 96(R1), R16
+	CMP  $0x00, R16
+	BEQ  sequenceDecs_decode_56_amd64_skip_update
 
 	// Update Literal Length State
 	MOVBU R6, R13
@@ -488,7 +478,7 @@ sequenceDecs_decode_56_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R14, R14
 	MOVD  $0x00000001, R4
-	BFI   $0, R13, $8, R1
+	MOVBU R13, R1
 	LSLW  R1, R4, R4
 	SUBW  $1, R4, R4
 	AND   R4, R14, R14
@@ -508,7 +498,7 @@ sequenceDecs_decode_56_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R14, R14
 	MOVD  $0x00000001, R4
-	BFI   $0, R13, $8, R1
+	MOVBU R13, R1
 	LSLW  R1, R4, R4
 	SUBW  $1, R4, R4
 	AND   R4, R14, R14
@@ -528,7 +518,7 @@ sequenceDecs_decode_56_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R14, R14
 	MOVD  $0x00000001, R4
-	BFI   $0, R13, $8, R1
+	MOVBU R13, R1
 	LSLW  R1, R4, R4
 	SUBW  $1, R4, R4
 	AND   R4, R14, R14
@@ -906,8 +896,7 @@ copy_overlapping_match:
 	ADD R12, R6, R6
 
 copy_slow_3:
-	MOVBU (R10), R16
-	BFI   $0, R16, $8, R11
+	MOVBU (R10), R11
 	MOVB  R11, (R3)
 	ADD   $1, R10, R10
 	ADD   $1, R3, R3
@@ -1308,8 +1297,7 @@ copy_overlapping_match:
 	ADD R12, R6, R6
 
 copy_slow_3:
-	MOVBU (R10), R16
-	BFI   $0, R16, $8, R11
+	MOVBU (R10), R11
 	MOVB  R11, (R3)
 	ADD   $1, R10, R10
 	ADD   $1, R3, R3
@@ -1435,8 +1423,7 @@ sequenceDecs_decodeSync_amd64_fill_end:
 	MOVD R3, R1
 	MOVD R2, R13
 	LSL  R1, R13, R13
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decodeSync_amd64_of_update_zero
@@ -1457,8 +1444,7 @@ sequenceDecs_decodeSync_amd64_of_update_zero:
 	MOVD R3, R1
 	MOVD R2, R13
 	LSL  R1, R13, R13
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decodeSync_amd64_ml_update_zero
@@ -1508,8 +1494,7 @@ sequenceDecs_decodeSync_amd64_fill_2_end:
 	MOVD R3, R1
 	MOVD R2, R13
 	LSL  R1, R13, R13
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decodeSync_amd64_ll_update_zero
@@ -1526,14 +1511,12 @@ sequenceDecs_decodeSync_amd64_ll_update_zero:
 	MOVD R0, 32(RSP)
 
 	// Fill bitreader for state updates
-	MOVD  R12, 8(RSP)
-	MOVD  R8, R0
-	LSR   $0x08, R0, R0
-	MOVBU R0, R0
-	MOVD  ctx+16(FP), R1
-	MOVD  96(R1), R16
-	CMP   $0x00, R16
-	BEQ   sequenceDecs_decodeSync_amd64_skip_update
+	MOVD R12, 8(RSP)
+	UBFX $8, R8, $8, R0
+	MOVD ctx+16(FP), R1
+	MOVD 96(R1), R16
+	CMP  $0x00, R16
+	BEQ  sequenceDecs_decodeSync_amd64_skip_update
 
 	// Update Literal Length State
 	MOVBU R6, R12
@@ -1544,7 +1527,7 @@ sequenceDecs_decodeSync_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R13, R13
 	MOVD  $0x00000001, R14
-	BFI   $0, R12, $8, R1
+	MOVBU R12, R1
 	LSLW  R1, R14, R14
 	SUBW  $1, R14, R14
 	AND   R14, R13, R13
@@ -1564,7 +1547,7 @@ sequenceDecs_decodeSync_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R13, R13
 	MOVD  $0x00000001, R14
-	BFI   $0, R12, $8, R1
+	MOVBU R12, R1
 	LSLW  R1, R14, R14
 	SUBW  $1, R14, R14
 	AND   R14, R13, R13
@@ -1584,7 +1567,7 @@ sequenceDecs_decodeSync_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R13, R13
 	MOVD  $0x00000001, R14
-	BFI   $0, R12, $8, R1
+	MOVBU R12, R1
 	LSLW  R1, R14, R14
 	SUBW  $1, R14, R14
 	AND   R14, R13, R13
@@ -1882,8 +1865,7 @@ copy_overlapping_match:
 	ADD R12, R11, R11
 
 copy_slow_3:
-	MOVBU (R0), R16
-	BFI   $0, R16, $8, R1
+	MOVBU (R0), R1
 	MOVB  R1, (R9)
 	ADD   $1, R0, R0
 	ADD   $1, R9, R9
@@ -2051,8 +2033,7 @@ sequenceDecs_decodeSync_safe_amd64_fill_end:
 	MOVD R3, R1
 	MOVD R2, R13
 	LSL  R1, R13, R13
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decodeSync_safe_amd64_of_update_zero
@@ -2073,8 +2054,7 @@ sequenceDecs_decodeSync_safe_amd64_of_update_zero:
 	MOVD R3, R1
 	MOVD R2, R13
 	LSL  R1, R13, R13
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decodeSync_safe_amd64_ml_update_zero
@@ -2124,8 +2104,7 @@ sequenceDecs_decodeSync_safe_amd64_fill_2_end:
 	MOVD R3, R1
 	MOVD R2, R13
 	LSL  R1, R13, R13
-	UBFX $8, R0, $8, R16
-	BFI  $0, R16, $8, R1
+	UBFX $8, R0, $8, R1
 	LSR  $0x20, R0, R0
 	TST  R1, R1
 	BEQ  sequenceDecs_decodeSync_safe_amd64_ll_update_zero
@@ -2142,14 +2121,12 @@ sequenceDecs_decodeSync_safe_amd64_ll_update_zero:
 	MOVD R0, 32(RSP)
 
 	// Fill bitreader for state updates
-	MOVD  R12, 8(RSP)
-	MOVD  R8, R0
-	LSR   $0x08, R0, R0
-	MOVBU R0, R0
-	MOVD  ctx+16(FP), R1
-	MOVD  96(R1), R16
-	CMP   $0x00, R16
-	BEQ   sequenceDecs_decodeSync_safe_amd64_skip_update
+	MOVD R12, 8(RSP)
+	UBFX $8, R8, $8, R0
+	MOVD ctx+16(FP), R1
+	MOVD 96(R1), R16
+	CMP  $0x00, R16
+	BEQ  sequenceDecs_decodeSync_safe_amd64_skip_update
 
 	// Update Literal Length State
 	MOVBU R6, R12
@@ -2160,7 +2137,7 @@ sequenceDecs_decodeSync_safe_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R13, R13
 	MOVD  $0x00000001, R14
-	BFI   $0, R12, $8, R1
+	MOVBU R12, R1
 	LSLW  R1, R14, R14
 	SUBW  $1, R14, R14
 	AND   R14, R13, R13
@@ -2180,7 +2157,7 @@ sequenceDecs_decodeSync_safe_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R13, R13
 	MOVD  $0x00000001, R14
-	BFI   $0, R12, $8, R1
+	MOVBU R12, R1
 	LSLW  R1, R14, R14
 	SUBW  $1, R14, R14
 	AND   R14, R13, R13
@@ -2200,7 +2177,7 @@ sequenceDecs_decodeSync_safe_amd64_ll_update_zero:
 	NEG   R1, R16
 	ROR   R16, R13, R13
 	MOVD  $0x00000001, R14
-	BFI   $0, R12, $8, R1
+	MOVBU R12, R1
 	LSLW  R1, R14, R14
 	SUBW  $1, R14, R14
 	AND   R14, R13, R13
@@ -2619,8 +2596,7 @@ copy_overlapping_match:
 	ADD R12, R11, R11
 
 copy_slow_3:
-	MOVBU (R0), R16
-	BFI   $0, R16, $8, R1
+	MOVBU (R0), R1
 	MOVB  R1, (R9)
 	ADD   $1, R0, R0
 	ADD   $1, R9, R9

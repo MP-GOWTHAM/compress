@@ -1,8 +1,6 @@
 module github.com/klauspost/compress/zstd/_generate
 
-go 1.24
-
-toolchain go1.24.2
+go 1.25
 
 require (
 	github.com/klauspost/compress v1.15.15
@@ -17,4 +15,4 @@ require (
 
 replace github.com/klauspost/compress => ../..
 
-replace github.com/mmcloughlin/avo => github.com/honeycombio/avo v0.6.1-0.20260725101136-a995462d70fa
+replace github.com/mmcloughlin/avo => github.com/honeycombio/avo v0.6.1-0.20260830035156-0a52965da4bd
